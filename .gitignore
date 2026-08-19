@@ -1,5 +1,7 @@
 tts.pid
 tts.log
+.parrot.env
+output/
 __pycache__/
 .pytest_cache/
 .venv/

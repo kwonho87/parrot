@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import threading
 import uuid
+import re
+from datetime import datetime
 
 import psutil
 
@@ -26,6 +28,9 @@ REFS_DIR = os.getenv("TTS_REFS_DIR", f"{BASE_DIR}/refs")
 # 저장소에 포함된 refs/. ref_id를 여기서 먼저 찾고, 없으면 REFS_DIR로 폴백한다.
 LOCAL_REFS_DIR = f"{BASE_DIR}/refs"
 TEMP_DIR = os.getenv("TTS_TEMP_DIR", "/tmp/fish_tts_temp")
+# 생성된 mp3를 보관할 폴더(선택). 지정하면 요청마다 결과 mp3를 이 폴더에 복사해 남긴다.
+# 빈 문자열이면 보관하지 않고 응답 후 삭제한다(기존 동작). setup.sh는 {parrot}/output으로 설정한다.
+OUTPUT_DIR = os.getenv("TTS_OUTPUT_DIR", "").strip()
 MLX_SPEECH_BIN = (
     os.getenv("MLX_SPEECH_BIN")
     or shutil.which("mlx-speech")
@@ -54,6 +59,20 @@ FFMPEG_BIN = (
 )
 
 os.makedirs(TEMP_DIR, exist_ok=True)
+if OUTPUT_DIR:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def _archive_output(mp3_file: str, ref_id: str, file_id: str) -> None:
+    """OUTPUT_DIR이 설정돼 있으면 생성된 mp3를 사람이 읽기 쉬운 이름으로 보관한다."""
+    if not OUTPUT_DIR:
+        return
+    safe_ref = re.sub(r"[^A-Za-z0-9._-]", "_", ref_id) or "ref"
+    name = f"{datetime.now():%Y%m%d-%H%M%S}_{safe_ref}_{file_id[:8]}.mp3"
+    try:
+        shutil.copyfile(mp3_file, os.path.join(OUTPUT_DIR, name))
+    except OSError as e:
+        logger.warning(f"[TTS] output 저장 실패: {e}")
 
 _engine = None
 _engine_lock = threading.Lock()
@@ -137,6 +156,7 @@ def _generate_sync(ref_id: str, text: str) -> bytes:
                 raise
             _fallback_to_cli(e).generate(text, ref_audio, ref_text, wav_file)
         _wav_to_mp3(wav_file, mp3_file)
+        _archive_output(mp3_file, ref_id, file_id)
         with open(mp3_file, "rb") as f:
             return f.read()
     finally:

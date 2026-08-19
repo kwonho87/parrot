@@ -45,7 +45,9 @@ The model is the MLX model `mlx-community/fishaudio-s2-pro-8bit-mlx` from Huggin
 parrot/
 ├── fishaudio-s2-pro-8bit-mlx/   # Model files (not in git; downloaded locally)
 ├── refs/                        # Reference voices (wav + txt)
+├── output/                      # Generated MP3s (not in git; created by setup.sh)
 ├── .venv/                       # Python virtualenv (not in git)
+├── setup.sh                     # one-shot setup + run script
 ├── server.py                    # FastAPI server
 ├── tts_engine.py                # Generation engines (worker / api / cli)
 ├── tts_worker.py                # Isolated model-resident worker
@@ -80,33 +82,83 @@ Rules:
 
 ---
 
-## First-time setup
+## Quick start (one-shot setup)
 
-`mlx-speech` requires Python 3.13+. The system `python3` on macOS is often 3.9, so create the venv with `python3.13`.
+`setup.sh` does everything below in one command, using the repository path as the base: it creates the venv, installs packages, downloads the model, creates the `output/` folder, saves your chosen paths to `.parrot.env`, and starts the server.
+
+```bash
+brew install python@3.13 ffmpeg   # prerequisites (once)
+./setup.sh
+```
+
+When it finishes the server is already running at `http://localhost:8010`. Manage it afterwards with `./tts.sh start|stop|status|restart`.
+
+### Changing paths
+
+Every path is overridable via a flag or an environment variable of the same name. The repository path is only the default base.
+
+```bash
+# store generated MP3s, the model, and use a different port elsewhere
+./setup.sh --output ~/tts-out --model /Volumes/ext/fish-model --port 9000
+
+# same via environment variables
+TTS_OUTPUT_DIR=~/tts-out ./setup.sh
+```
+
+| Flag | Env var | Default |
+|------|---------|---------|
+| `--venv` | `PARROT_VENV` | `{parrot}/.venv` |
+| `--model` | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
+| `--refs` | `TTS_REFS_DIR` | `{parrot}/refs` |
+| `--output` | `TTS_OUTPUT_DIR` | `{parrot}/output` |
+| `--temp` | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` |
+| `--port` | `TTS_PORT` | `8010` |
+| `--host` | `TTS_HOST` | `0.0.0.0` |
+| `--model-repo` | `PARROT_MODEL_REPO` | `mlx-community/fishaudio-s2-pro-8bit-mlx` |
+| `--python` | `PARROT_PYTHON` | auto-detected `python3.13+` |
+
+Other options: `--no-start` (set up but don't launch the server), `--help` (full list). The chosen paths are written to `.parrot.env`, which `tts.sh` reads on every start — so later `./tts.sh start` reuses them. Priority is **pre-exported env var > `.parrot.env` > built-in default**, so you can still override a single run with e.g. `TTS_OUTPUT_DIR=/other ./tts.sh start`.
+
+Prefer to run the steps manually? Follow the sections below instead.
+
+---
+
+## Manual setup (step by step)
+
+Prefer to understand each step, or need a custom setup? Run the steps below in order from the repository root. (All of them are automated by `setup.sh` — see the note at the end.)
+
+### 1. Install prerequisites
+
+`mlx-speech` requires Python 3.13+. The system `python3` on macOS is often 3.9, so install `python@3.13`. `ffmpeg` is required for MP3 encoding.
 
 ```bash
 brew install python@3.13 ffmpeg
 ```
 
-Create the virtualenv and install packages from the repo root.
+### 2. Create the virtualenv
+
+Create the venv with `python3.13` from the repo root.
 
 ```bash
 cd parrot
 python3.13 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+```
+
+If you already created `.venv` with Python 3.9, run `rm -rf .venv` and repeat this step.
+
+### 3. Install packages
+
+```bash
 pip install mlx-speech fastapi uvicorn python-multipart huggingface_hub psutil numpy soundfile
 ```
 
-If you already created `.venv` with Python 3.9, run `rm -rf .venv` and repeat the steps above.
-
-### Download the model
+### 4. Download the model
 
 The model is not committed to git; download it into the local `fishaudio-s2-pro-8bit-mlx` folder.
 
 ```bash
-cd parrot
-source .venv/bin/activate
 hf download mlx-community/fishaudio-s2-pro-8bit-mlx \
   --local-dir ./fishaudio-s2-pro-8bit-mlx
 ```
@@ -116,6 +168,24 @@ To store the model elsewhere, set `FISH_S2_MODEL_PATH` before starting the serve
 ```bash
 export FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
 ```
+
+### 5. (Optional) Choose where generated MP3s are saved
+
+By default generated MP3s are returned and then deleted. To keep a copy, point `TTS_OUTPUT_DIR` at a folder (created if missing).
+
+```bash
+export TTS_OUTPUT_DIR="$(pwd)/output"
+```
+
+### 6. Start the server
+
+```bash
+./tts.sh start
+```
+
+Then open `http://localhost:8010/health`. Managing the server (`start`/`stop`/`status`/`restart`) is covered in the next section.
+
+> 💡 **All six steps at once:** everything above — venv, packages, model download, `output/` folder, and starting the server — is done automatically by `./setup.sh`. See **[Quick start](#quick-start-one-shot-setup)** above. Use the manual steps only when you want to run or customize each part yourself.
 
 ---
 
@@ -258,6 +328,8 @@ In that case the server must be bound to an interface reachable from the contain
 | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | Model folder path |
 | `TTS_REFS_DIR` | `{parrot}/refs` | Reference voice folder. Set to use an external folder (the repo's `refs/` is checked first, then this folder) |
 | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` | Temp folder for WAV/MP3 generation |
+| `TTS_OUTPUT_DIR` | *(empty)* | Folder to keep generated MP3s. When set, each result is also saved here as `{timestamp}_{ref_id}_{id}.mp3`. Empty means don't keep them (deleted after the response). `setup.sh` sets this to `{parrot}/output` |
+| `TTS_PORT` | `8010` | Server port used by `tts.sh` |
 | `TTS_HOST` | `0.0.0.0` | Bind address used by `tts.sh`. Use `127.0.0.1` to restrict to local only (see Security notes) |
 | `TTS_ENGINE` | `worker` | `worker`=model resident in an isolated child process (fast + crash-isolated, recommended), `api`=in-process resident (fast, but a crash takes down the whole server), `cli`=runs the mlx-speech CLI per request. Falls back to cli if init fails |
 | `TTS_WORKER_TIMEOUT` | `120` | Timeout (sec) waiting for a generation result in the worker engine. On timeout the worker is killed and restarted |

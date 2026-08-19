@@ -14,10 +14,18 @@
 # ================================================================
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV="$BASE_DIR/.venv"
+
+# setup.sh가 생성한 설정 파일이 있으면 경로/옵션을 불러온다(이미 export된 값이 우선).
+if [ -f "$BASE_DIR/.parrot.env" ]; then
+  set -a
+  source "$BASE_DIR/.parrot.env"
+  set +a
+fi
+
+VENV="${PARROT_VENV:-$BASE_DIR/.venv}"
 PID_FILE="$BASE_DIR/tts.pid"
 LOG_FILE="$BASE_DIR/tts.log"
-PORT=8010
+PORT="${TTS_PORT:-8010}"
 PYTHON="$VENV/bin/python"
 # 레퍼런스 음원 폴더. 저장소 refs/가 기본이며, 외부 폴더를 쓰려면 TTS_REFS_DIR로 지정.
 DEFAULT_REFS_DIR="$BASE_DIR/refs"
@@ -53,6 +61,8 @@ start() {
   export FISH_S2_MODEL_PATH="${FISH_S2_MODEL_PATH:-$BASE_DIR/fishaudio-s2-pro-8bit-mlx}"
   export TTS_REFS_DIR="${TTS_REFS_DIR:-$DEFAULT_REFS_DIR}"
   export TTS_TEMP_DIR="${TTS_TEMP_DIR:-/tmp/fish_tts_temp}"
+  # 생성된 mp3 보관 폴더. 비어 있으면 보관하지 않는다(setup.sh는 {parrot}/output으로 설정).
+  export TTS_OUTPUT_DIR="${TTS_OUTPUT_DIR:-}"
   nohup "$PYTHON" -m uvicorn server:app \
     --host "$HOST" \
     --port $PORT \

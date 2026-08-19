@@ -45,7 +45,9 @@ Apple Silicon(macOS + MLX)에서 동작하는 로컬 FastAPI 기반 TTS 서버�
 parrot/
 ├── fishaudio-s2-pro-8bit-mlx/   # 모델 파일 (git에 포함하지 않음, 로컬에 내려받음)
 ├── refs/                        # 레퍼런스 음원(wav + txt)
+├── output/                      # 생성된 mp3 (git 제외, setup.sh가 생성)
 ├── .venv/                       # Python 가상환경 (git에 포함하지 않음)
+├── setup.sh                     # 원클릭 셋업 + 실행 스크립트
 ├── server.py                    # FastAPI 서버
 ├── tts_engine.py                # 생성 엔진 (worker / api / cli)
 ├── tts_worker.py                # 모델 상주 격리 워커
@@ -80,33 +82,83 @@ refs/
 
 ---
 
-## 최초 세팅
+## 빠른 시작 (원클릭 셋업)
 
-`mlx-speech`는 Python 3.13 이상에서 설치됩니다. macOS 기본 `python3`가 3.9인 경우가 많으므로 `python3.13`으로 venv를 만들어야 합니다.
+`setup.sh`는 아래 과정을 명령 한 번으로 처리합니다. 리포지토리 경로를 기준(base)으로 venv 생성, 패키지 설치, 모델 다운로드, `output/` 폴더 생성, 선택한 경로들을 `.parrot.env`에 저장, 서버 기동까지 한 번에 합니다.
+
+```bash
+brew install python@3.13 ffmpeg   # 사전 준비 (최초 1회)
+./setup.sh
+```
+
+끝나면 서버가 이미 `http://localhost:8010`에서 실행 중입니다. 이후에는 `./tts.sh start|stop|status|restart`로 관리합니다.
+
+### 경로 변경
+
+모든 경로는 옵션 또는 동일 이름의 환경변수로 바꿀 수 있습니다. 리포지토리 경로는 기본값일 뿐입니다.
+
+```bash
+# 생성 mp3·모델 저장 위치와 포트를 다르게 지정
+./setup.sh --output ~/tts-out --model /Volumes/ext/fish-model --port 9000
+
+# 환경변수로도 동일하게 지정 가능
+TTS_OUTPUT_DIR=~/tts-out ./setup.sh
+```
+
+| 옵션 | 환경변수 | 기본값 |
+|------|---------|--------|
+| `--venv` | `PARROT_VENV` | `{parrot}/.venv` |
+| `--model` | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
+| `--refs` | `TTS_REFS_DIR` | `{parrot}/refs` |
+| `--output` | `TTS_OUTPUT_DIR` | `{parrot}/output` |
+| `--temp` | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` |
+| `--port` | `TTS_PORT` | `8010` |
+| `--host` | `TTS_HOST` | `0.0.0.0` |
+| `--model-repo` | `PARROT_MODEL_REPO` | `mlx-community/fishaudio-s2-pro-8bit-mlx` |
+| `--python` | `PARROT_PYTHON` | `python3.13+` 자동 탐색 |
+
+그 외 옵션: `--no-start`(셋업만 하고 서버는 띄우지 않음), `--help`(전체 목록). 선택한 경로는 `.parrot.env`에 저장되고 `tts.sh`가 시작할 때마다 읽으므로, 이후 `./tts.sh start`도 같은 경로를 재사용합니다. 우선순위는 **미리 export한 환경변수 > `.parrot.env` > 기본값** 이라서, `TTS_OUTPUT_DIR=/other ./tts.sh start`처럼 한 번만 덮어쓸 수도 있습니다.
+
+수동으로 단계별 설치를 원하면 아래 섹션을 따르세요.
+
+---
+
+## 수동 세팅 (단계별)
+
+각 단계를 직접 이해하거나 세부 설정을 바꾸고 싶다면, 저장소 루트에서 아래 순서대로 실행하세요. (아래 과정은 모두 `setup.sh`로 자동화되어 있습니다 — 맨 끝의 안내 참고.)
+
+### 1. 사전 준비 설치
+
+`mlx-speech`는 Python 3.13 이상이 필요합니다. macOS 기본 `python3`가 3.9인 경우가 많으므로 `python@3.13`을 설치하세요. mp3 인코딩에는 `ffmpeg`이 필요합니다.
 
 ```bash
 brew install python@3.13 ffmpeg
 ```
 
-저장소 루트에서 가상환경을 만들고 패키지를 설치합니다.
+### 2. 가상환경 생성
+
+저장소 루트에서 `python3.13`으로 venv를 만듭니다.
 
 ```bash
 cd parrot
 python3.13 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+```
+
+이미 Python 3.9로 `.venv`를 만들었다면 `rm -rf .venv` 후 이 단계를 다시 실행하세요.
+
+### 3. 패키지 설치
+
+```bash
 pip install mlx-speech fastapi uvicorn python-multipart huggingface_hub psutil numpy soundfile
 ```
 
-이미 Python 3.9로 `.venv`를 만들었다면 `rm -rf .venv` 후 위 과정을 다시 실행하세요.
-
-### 모델 내려받기
+### 4. 모델 내려받기
 
 모델은 git에 포함하지 않고 로컬의 `fishaudio-s2-pro-8bit-mlx` 폴더에 내려받아 둡니다.
 
 ```bash
-cd parrot
-source .venv/bin/activate
 hf download mlx-community/fishaudio-s2-pro-8bit-mlx \
   --local-dir ./fishaudio-s2-pro-8bit-mlx
 ```
@@ -116,6 +168,24 @@ hf download mlx-community/fishaudio-s2-pro-8bit-mlx \
 ```bash
 export FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
 ```
+
+### 5. (선택) 생성된 mp3 저장 위치 지정
+
+기본적으로 생성된 mp3는 응답 후 삭제됩니다. 사본을 남기려면 `TTS_OUTPUT_DIR`에 폴더를 지정하세요(없으면 생성됩니다).
+
+```bash
+export TTS_OUTPUT_DIR="$(pwd)/output"
+```
+
+### 6. 서버 시작
+
+```bash
+./tts.sh start
+```
+
+그다음 `http://localhost:8010/health`을 열어 확인합니다. 서버 관리(`start`/`stop`/`status`/`restart`)는 다음 섹션에서 다룹니다.
+
+> 💡 **위 6단계를 한 번에:** 위의 모든 과정(venv, 패키지, 모델 다운로드, `output/` 폴더, 서버 시작)은 `./setup.sh` 한 번으로 자동 수행됩니다. 위의 **[빠른 시작](#빠른-시작-원클릭-셋업)**을 참고하세요. 수동 단계는 각 부분을 직접 실행·조정하고 싶을 때만 사용하면 됩니다.
 
 ---
 
@@ -258,6 +328,8 @@ http://host.docker.internal:8010/tts
 | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | 모델 폴더 경로 |
 | `TTS_REFS_DIR` | `{parrot}/refs` | 레퍼런스 음원 폴더. 외부 폴더를 쓰려면 지정 (저장소 `refs/`를 먼저 찾고 없으면 이 폴더로 폴백) |
 | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` | WAV/MP3 임시 생성 폴더 |
+| `TTS_OUTPUT_DIR` | *(빈 값)* | 생성된 mp3 보관 폴더. 지정하면 결과 mp3를 `{시각}_{ref_id}_{id}.mp3` 형식으로 함께 저장. 빈 값이면 보관하지 않음(응답 후 삭제). `setup.sh`는 `{parrot}/output`으로 설정 |
+| `TTS_PORT` | `8010` | `tts.sh`가 사용하는 서버 포트 |
 | `TTS_HOST` | `0.0.0.0` | `tts.sh`의 서버 바인딩 주소. 로컬 전용으로 제한하려면 `127.0.0.1` (아래 보안 주의 참고) |
 | `TTS_ENGINE` | `worker` | `worker`=모델을 격리 자식 프로세스에 상주(빠름+크래시 격리, 권장), `api`=in-process 상주(빠르지만 크래시 시 서버 전체 종료), `cli`=요청마다 mlx-speech CLI 실행. 초기화 실패 시 cli 폴백 |
 | `TTS_WORKER_TIMEOUT` | `120` | worker 엔진에서 생성 결과 대기 타임아웃(초). 초과 시 워커 kill 후 재기동 |
