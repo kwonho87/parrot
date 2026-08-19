@@ -1,0 +1,32 @@
+# macapp/project.yml
+name: Parrot
+options:
+  bundleIdPrefix: net.kwonho
+  deploymentTarget:
+    macOS: "14.0"
+targets:
+  Parrot:
+    type: application
+    platform: macOS
+    sources: [Parrot]
+    info:
+      path: Parrot/Info.plist
+      properties:
+        LSUIElement: true            # Dock 아이콘 숨김 (메뉴바 앱)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        CFBundleShortVersionString: "1.0"
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: "-"      # ad-hoc 서명 (본인 맥 전용)
+        ENABLE_HARDENED_RUNTIME: false
+  ParrotTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [ParrotTests]
+    dependencies:
+      - target: Parrot
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: "-"
+        GENERATE_INFOPLIST_FILE: YES
