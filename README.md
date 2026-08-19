@@ -4,6 +4,13 @@
 
 **English** | [한국어](README.ko.md)
 
+[![CI](https://github.com/kwonho87/parrot/actions/workflows/ci.yml/badge.svg)](https://github.com/kwonho87/parrot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/kwonho87/parrot/branch/main/graph/badge.svg)](https://codecov.io/gh/kwonho87/parrot)
+[![CodeFactor](https://www.codefactor.io/repository/github/kwonho87/parrot/badge)](https://www.codefactor.io/repository/github/kwonho87/parrot)
+[![License: MIT](https://img.shields.io/github/license/kwonho87/parrot)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-lightgrey)
+![Python](https://img.shields.io/badge/python-3.13%2B-blue)
+
 A local FastAPI-based TTS server that runs on Apple Silicon (macOS + MLX). Drop a short reference voice and its transcript into the `refs` folder, and Parrot generates an MP3 of your text read in that voice. Like a parrot mimicking a voice, it's handy for local use — alarm sounds, narration, short speech synthesis, and more.
 
 Requests go into an internal queue (`asyncio.Queue`) and are processed one at a time. The default engine (`TTS_ENGINE=worker`) keeps the model resident in an isolated child process for fast repeat requests, and automatically unloads it after a period of idle time.

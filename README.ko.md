@@ -4,6 +4,13 @@
 
 [English](README.md) | **한국어**
 
+[![CI](https://github.com/kwonho87/parrot/actions/workflows/ci.yml/badge.svg)](https://github.com/kwonho87/parrot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/kwonho87/parrot/branch/main/graph/badge.svg)](https://codecov.io/gh/kwonho87/parrot)
+[![CodeFactor](https://www.codefactor.io/repository/github/kwonho87/parrot/badge)](https://www.codefactor.io/repository/github/kwonho87/parrot)
+[![License: MIT](https://img.shields.io/github/license/kwonho87/parrot)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-lightgrey)
+![Python](https://img.shields.io/badge/python-3.13%2B-blue)
+
 Apple Silicon(macOS + MLX)에서 동작하는 로컬 FastAPI 기반 TTS 서버입니다. `refs` 폴더에 짧은 레퍼런스 음성과 그 스크립트만 넣으면, 요청한 문장을 그 목소리로 읽은 MP3를 생성해 반환합니다. 앵무새처럼 목소리를 따라 하며, 알림음·내레이션·짧은 음성 합성 등에 로컬에서 사용할 수 있습니다.
 
 요청은 내부 큐(`asyncio.Queue`)에 들어가 1개씩 순서대로 처리되며, 기본 엔진(`TTS_ENGINE=worker`)은 모델을 격리된 자식 프로세스에 상주시켜 반복 요청을 빠르게 처리하고 일정 시간 idle이면 자동으로 언로드합니다.

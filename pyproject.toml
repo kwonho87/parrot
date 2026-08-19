@@ -1,0 +1,9 @@
+[tool.pytest.ini_options]
+# server.py 등 저장소 루트 모듈을 테스트에서 import 할 수 있도록 루트를 경로에 추가
+pythonpath = ["."]
+testpaths = ["tests"]
+# @pytest.mark.asyncio 로 표시된 비동기 테스트 실행
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+omit = ["tests/*"]

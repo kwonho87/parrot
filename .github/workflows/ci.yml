@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        # 테스트는 mlx_speech를 모킹하므로 Apple Silicon 없이도 실행된다.
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi httpx psutil numpy soundfile pytest pytest-asyncio pytest-cov
+
+      - name: Run tests with coverage
+        run: python -m pytest --cov=. --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  macapp-build:
+    name: macapp build
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate project & build
+        working-directory: macapp
+        run: |
+          xcodegen generate
+          xcodebuild -project Parrot.xcodeproj -scheme Parrot \
+            -configuration Debug -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO build
