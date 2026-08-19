@@ -249,8 +249,8 @@ ServerManager는 아래와 동일한 프로세스를 자식으로 실행합니�
   --host 0.0.0.0 --port {포트} --app-dir {저장소}
 ```
 
-환경변수로 설정을 전달합니다: `TTS_REFS_DIR`, `FISH_S2_MODEL_PATH`,
-`TTS_MODEL_TTL_SEC`, `TTS_TEMP_DIR`. 즉 `tts.sh`와 동일한 방식으로 서버를
+환경변수로 설정을 전달합니다: `TTS_REFS_DIR`, `TTS_MODEL_PATH`,
+`TTS_OUTPUT_DIR`, `TTS_MODEL_TTL_SEC`, `TTS_TEMP_DIR`. 즉 `tts.sh`와 동일한 방식으로 서버를
 띄우므로 두 방식을 오가도 서버 동작이 달라지지 않습니다. 바인딩 주소의
 보안 주의는 루트 [README](../README.md)의 "보안 주의" 섹션을 참고하세요.
 

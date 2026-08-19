@@ -140,7 +140,7 @@ TTS_OUTPUT_DIR=~/tts-out ./setup.sh
 | Flag | Env var | Default |
 |------|---------|---------|
 | `--venv` | `PARROT_VENV` | `{parrot}/.venv` |
-| `--model` | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
+| `--model` | `TTS_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
 | `--refs` | `TTS_REFS_DIR` | `{parrot}/refs` |
 | `--output` | `TTS_OUTPUT_DIR` | `{parrot}/output` |
 | `--temp` | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` |
@@ -195,10 +195,10 @@ hf download mlx-community/fishaudio-s2-pro-8bit-mlx \
   --local-dir ./fishaudio-s2-pro-8bit-mlx
 ```
 
-To store the model elsewhere, set `FISH_S2_MODEL_PATH` before starting the server.
+To store the model elsewhere, set `TTS_MODEL_PATH` before starting the server.
 
 ```bash
-export FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
+export TTS_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
 ```
 
 ### 5. (Optional) Choose where generated MP3s are saved
@@ -236,6 +236,31 @@ View logs:
 ```bash
 tail -f parrot/tts.log
 ```
+
+---
+
+## Changing the model
+
+Parrot is not hard-wired to `fishaudio-s2-pro-8bit-mlx` — the server delegates everything to the `mlx-speech` library (`mlx_speech.tts.load(model_path)` / `model.generate(...)`), so you can point it at a different model. Just make sure the replacement satisfies these conditions, or it won't work without code changes:
+
+1. **Loadable by `mlx-speech`** — an MLX-format TTS model that `mlx_speech.tts.load()` can open (e.g. models from the `mlx-community` org). The exact list depends on your installed `mlx-speech` version.
+2. **Reference-audio voice cloning** — the server always sends a reference `wav + txt`, and picks the `generate()` argument names from `ref_audio/ref_text`, `reference_audio/reference_text`, or `speaker_audio/speaker_text`. A model that doesn't take a reference-audio pair (fixed-voice or speaker-id only) raises `TypeError` and fails.
+3. `generate()` must return an object with `.waveform` and `.sample_rate` (all `mlx-speech` models do). `prepare_reference()` (the reference cache fast-path) is used only if the model supports it, otherwise it transparently falls back to per-request encoding.
+
+**Works easily:** another quantization/variant of the same fish-speech S2 family, or any other cloning TTS model `mlx-speech` supports. **Needs code changes:** non-cloning (single-voice / speaker-id) models.
+
+Swap it by pointing the model path at the new folder — no code edit needed:
+
+```bash
+# download + use in one step
+./setup.sh --model-repo <huggingface/repo> --model ./my-model
+
+# or point an existing server at a downloaded folder
+export TTS_MODEL_PATH=/path/to/my-model
+./tts.sh restart
+```
+
+> `TTS_MODEL_PATH` is just "the model folder path" and accepts any model. The legacy name `FISH_S2_MODEL_PATH` is still honored for backward compatibility.
 
 ---
 
@@ -357,7 +382,7 @@ In that case the server must be bound to an interface reachable from the contain
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | Model folder path |
+| `TTS_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | Model folder path. The legacy name `FISH_S2_MODEL_PATH` is still accepted (used only if `TTS_MODEL_PATH` is unset) |
 | `TTS_REFS_DIR` | `{parrot}/refs` | Reference voice folder. Set to use an external folder (the repo's `refs/` is checked first, then this folder) |
 | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` | Temp folder for WAV/MP3 generation |
 | `TTS_OUTPUT_DIR` | *(empty)* | Folder to keep generated MP3s. When set, each result is also saved here as `{timestamp}_{ref_id}_{id}.mp3`. Empty means don't keep them (deleted after the response). `setup.sh` sets this to `{parrot}/output` |
@@ -378,7 +403,7 @@ Example:
 
 ```bash
 cd parrot
-FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx ./tts.sh start
+TTS_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx ./tts.sh start
 ```
 
 ---
@@ -434,7 +459,7 @@ brew install ffmpeg
 
 ### Model files not found
 
-Check `FISH_S2_MODEL_PATH` or the `{parrot}/fishaudio-s2-pro-8bit-mlx` path.
+Check `TTS_MODEL_PATH` or the `{parrot}/fishaudio-s2-pro-8bit-mlx` path.
 
 ```bash
 ls -la parrot/fishaudio-s2-pro-8bit-mlx

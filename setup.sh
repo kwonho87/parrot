@@ -24,7 +24,7 @@ BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ---- 기본값 (환경변수로도 덮어쓸 수 있음) --------------------------------
 VENV_DIR="${PARROT_VENV:-$BASE_DIR/.venv}"
-MODEL_DIR="${FISH_S2_MODEL_PATH:-$BASE_DIR/fishaudio-s2-pro-8bit-mlx}"
+MODEL_DIR="${TTS_MODEL_PATH:-${FISH_S2_MODEL_PATH:-$BASE_DIR/fishaudio-s2-pro-8bit-mlx}}"
 REFS_DIR="${TTS_REFS_DIR:-$BASE_DIR/refs}"
 OUTPUT_DIR="${TTS_OUTPUT_DIR:-$BASE_DIR/output}"
 TEMP_DIR="${TTS_TEMP_DIR:-/tmp/fish_tts_temp}"
@@ -55,8 +55,9 @@ Parrot 셋업 스크립트
   --no-start           셋업만 하고 서버는 띄우지 않음
   -h, --help           이 도움말
 
-모든 경로는 동일 이름의 환경변수(FISH_S2_MODEL_PATH, TTS_REFS_DIR,
+모든 경로는 동일 이름의 환경변수(TTS_MODEL_PATH, TTS_REFS_DIR,
 TTS_OUTPUT_DIR, TTS_TEMP_DIR, TTS_PORT, TTS_HOST, PARROT_VENV)로도 지정할 수 있습니다.
+(모델 경로의 구 이름 FISH_S2_MODEL_PATH도 계속 인식됩니다.)
 EOF
 }
 
@@ -169,7 +170,7 @@ cat > "$ENV_FILE" <<EOF
 # setup.sh 가 생성한 Parrot 설정 파일. tts.sh 가 시작 시 자동으로 읽습니다.
 # 실행 전에 같은 이름의 환경변수를 export 하면 그 값이 우선합니다.
 export PARROT_VENV="\${PARROT_VENV:-$VENV_DIR}"
-export FISH_S2_MODEL_PATH="\${FISH_S2_MODEL_PATH:-$MODEL_DIR}"
+export TTS_MODEL_PATH="\${TTS_MODEL_PATH:-$MODEL_DIR}"
 export TTS_REFS_DIR="\${TTS_REFS_DIR:-$REFS_DIR}"
 export TTS_OUTPUT_DIR="\${TTS_OUTPUT_DIR:-$OUTPUT_DIR}"
 export TTS_TEMP_DIR="\${TTS_TEMP_DIR:-$TEMP_DIR}"

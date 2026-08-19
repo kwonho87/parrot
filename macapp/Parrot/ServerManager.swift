@@ -94,7 +94,7 @@ final class ServerManager: ObservableObject {
         // GUI 앱은 Homebrew PATH를 상속받지 못한다 — ffmpeg 등 외부 도구 탐색용으로 보강
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "/usr/bin:/bin")
         env["TTS_REFS_DIR"] = settings.refsDir
-        env["FISH_S2_MODEL_PATH"] = settings.modelPath
+        env["TTS_MODEL_PATH"] = settings.modelPath
         env["TTS_MODEL_TTL_SEC"] = String(settings.modelTTLSec)
         env["TTS_TEMP_DIR"] = "/tmp/fish_tts_temp"
         // 생성 mp3 보관 폴더. 비어 있으면 서버가 저장하지 않는다(빈 문자열=off).

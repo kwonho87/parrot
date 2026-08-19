@@ -140,7 +140,7 @@ TTS_OUTPUT_DIR=~/tts-out ./setup.sh
 | 옵션 | 환경변수 | 기본값 |
 |------|---------|--------|
 | `--venv` | `PARROT_VENV` | `{parrot}/.venv` |
-| `--model` | `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
+| `--model` | `TTS_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` |
 | `--refs` | `TTS_REFS_DIR` | `{parrot}/refs` |
 | `--output` | `TTS_OUTPUT_DIR` | `{parrot}/output` |
 | `--temp` | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` |
@@ -195,10 +195,10 @@ hf download mlx-community/fishaudio-s2-pro-8bit-mlx \
   --local-dir ./fishaudio-s2-pro-8bit-mlx
 ```
 
-모델 저장 위치를 바꾸려면 서버 실행 전에 `FISH_S2_MODEL_PATH`를 지정합니다.
+모델 저장 위치를 바꾸려면 서버 실행 전에 `TTS_MODEL_PATH`를 지정합니다.
 
 ```bash
-export FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
+export TTS_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx
 ```
 
 ### 5. (선택) 생성된 mp3 저장 위치 지정
@@ -236,6 +236,31 @@ cd parrot
 ```bash
 tail -f parrot/tts.log
 ```
+
+---
+
+## 모델 교체
+
+Parrot은 `fishaudio-s2-pro-8bit-mlx`에 하드코딩돼 있지 않습니다. 서버는 모든 처리를 `mlx-speech` 라이브러리에 위임하므로(`mlx_speech.tts.load(model_path)` / `model.generate(...)`), 다른 모델로 바꿀 수 있습니다. 다만 교체 모델이 아래 조건을 만족해야 **코드 수정 없이** 동작합니다.
+
+1. **`mlx-speech`가 로드 가능** — `mlx_speech.tts.load()`가 열 수 있는 MLX 포맷 TTS 모델(예: `mlx-community` 조직의 모델). 정확한 지원 목록은 설치된 `mlx-speech` 버전에 따라 다릅니다.
+2. **레퍼런스 음성 클로닝 방식** — 서버는 항상 레퍼런스 `wav + txt`를 넘기며, `generate()`의 인자명을 `ref_audio/ref_text`, `reference_audio/reference_text`, `speaker_audio/speaker_text` 중에서 찾습니다. 레퍼런스 오디오 쌍을 받지 않는 모델(고정 목소리·speaker-id 방식)은 `TypeError`로 실패합니다.
+3. `generate()` 결과가 `.waveform`과 `.sample_rate`를 제공해야 합니다(모든 `mlx-speech` 모델이 충족). `prepare_reference()`(레퍼런스 캐시 고속 경로)는 지원 모델에서만 쓰이고, 미지원이면 자동으로 매 요청 인코딩 경로로 폴백합니다.
+
+**쉽게 되는 것:** 같은 fish-speech S2 계열의 다른 양자화/변형, 또는 `mlx-speech`가 지원하는 다른 클로닝 TTS 모델. **코드 수정 필요:** 비클로닝(단일 화자·speaker-id) 모델.
+
+모델 경로를 새 폴더로 지정하면 교체됩니다 — 코드 수정 불필요:
+
+```bash
+# 다운로드 + 사용을 한 번에
+./setup.sh --model-repo <huggingface/repo> --model ./my-model
+
+# 이미 있는 폴더를 실행 중 서버에 지정
+export TTS_MODEL_PATH=/path/to/my-model
+./tts.sh restart
+```
+
+> `TTS_MODEL_PATH`는 단순히 "모델 폴더 경로"라 어떤 모델이든 가리킬 수 있습니다. 구 이름 `FISH_S2_MODEL_PATH`도 하위호환을 위해 계속 인식됩니다.
 
 ---
 
@@ -357,7 +382,7 @@ http://host.docker.internal:8010/tts
 
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
-| `FISH_S2_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | 모델 폴더 경로 |
+| `TTS_MODEL_PATH` | `{parrot}/fishaudio-s2-pro-8bit-mlx` | 모델 폴더 경로. 구 이름 `FISH_S2_MODEL_PATH`도 계속 인식됩니다(`TTS_MODEL_PATH`가 없을 때만 사용) |
 | `TTS_REFS_DIR` | `{parrot}/refs` | 레퍼런스 음원 폴더. 외부 폴더를 쓰려면 지정 (저장소 `refs/`를 먼저 찾고 없으면 이 폴더로 폴백) |
 | `TTS_TEMP_DIR` | `/tmp/fish_tts_temp` | WAV/MP3 임시 생성 폴더 |
 | `TTS_OUTPUT_DIR` | *(빈 값)* | 생성된 mp3 보관 폴더. 지정하면 결과 mp3를 `{시각}_{ref_id}_{id}.mp3` 형식으로 함께 저장. 빈 값이면 보관하지 않음(응답 후 삭제). `setup.sh`는 `{parrot}/output`으로 설정 |
@@ -378,7 +403,7 @@ http://host.docker.internal:8010/tts
 
 ```bash
 cd parrot
-FISH_S2_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx ./tts.sh start
+TTS_MODEL_PATH=/path/to/fishaudio-s2-pro-8bit-mlx ./tts.sh start
 ```
 
 ---
@@ -434,7 +459,7 @@ brew install ffmpeg
 
 ### 모델 파일을 찾지 못하는 경우
 
-`FISH_S2_MODEL_PATH` 또는 `{parrot}/fishaudio-s2-pro-8bit-mlx` 경로를 확인합니다.
+`TTS_MODEL_PATH` 또는 `{parrot}/fishaudio-s2-pro-8bit-mlx` 경로를 확인합니다.
 
 ```bash
 ls -la parrot/fishaudio-s2-pro-8bit-mlx

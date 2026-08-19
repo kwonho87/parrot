@@ -22,7 +22,12 @@ logger = setup_logging()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-MODEL_PATH = os.getenv("FISH_S2_MODEL_PATH", f"{BASE_DIR}/fishaudio-s2-pro-8bit-mlx")
+# 모델 폴더 경로. TTS_MODEL_PATH가 우선, 없으면 구 이름 FISH_S2_MODEL_PATH를 폴백으로 인정.
+MODEL_PATH = (
+    os.getenv("TTS_MODEL_PATH")
+    or os.getenv("FISH_S2_MODEL_PATH")
+    or f"{BASE_DIR}/fishaudio-s2-pro-8bit-mlx"
+)
 # 외부 레퍼런스 폴더(선택). 지정하지 않으면 저장소의 refs/만 사용한다.
 REFS_DIR = os.getenv("TTS_REFS_DIR", f"{BASE_DIR}/refs")
 # 저장소에 포함된 refs/. ref_id를 여기서 먼저 찾고, 없으면 REFS_DIR로 폴백한다.

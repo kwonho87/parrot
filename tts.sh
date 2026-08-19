@@ -58,7 +58,8 @@ start() {
 
   echo "🚀 TTS 서버 시작 중..."
   export PATH="$VENV/bin:$PATH"
-  export FISH_S2_MODEL_PATH="${FISH_S2_MODEL_PATH:-$BASE_DIR/fishaudio-s2-pro-8bit-mlx}"
+  # 모델 경로. TTS_MODEL_PATH 우선, 구 이름 FISH_S2_MODEL_PATH도 폴백으로 인정.
+  export TTS_MODEL_PATH="${TTS_MODEL_PATH:-${FISH_S2_MODEL_PATH:-$BASE_DIR/fishaudio-s2-pro-8bit-mlx}}"
   export TTS_REFS_DIR="${TTS_REFS_DIR:-$DEFAULT_REFS_DIR}"
   export TTS_TEMP_DIR="${TTS_TEMP_DIR:-/tmp/fish_tts_temp}"
   # 생성된 mp3 보관 폴더. 비어 있으면 보관하지 않는다(setup.sh는 {parrot}/output으로 설정).

@@ -102,7 +102,7 @@ final class AppSettings: ObservableObject {
         // setup.sh/tts.sh가 쓰는 .parrot.env와 포트·output 경로를 맞춘다(저장된 설정이 우선).
         let env = Self.parrotEnv(repoDir: repo)
         refsDir = d.string(forKey: "refsDir") ?? env["TTS_REFS_DIR"] ?? Self.detectRefsDir(repoDir: repo)
-        modelPath = d.string(forKey: "modelPath") ?? env["FISH_S2_MODEL_PATH"] ?? repo + "/fishaudio-s2-pro-8bit-mlx"
+        modelPath = d.string(forKey: "modelPath") ?? env["TTS_MODEL_PATH"] ?? env["FISH_S2_MODEL_PATH"] ?? repo + "/fishaudio-s2-pro-8bit-mlx"
         outputDir = d.string(forKey: "outputDir") ?? env["TTS_OUTPUT_DIR"] ?? repo + "/output"
         let storedPort = d.object(forKey: "port") as? Int ?? env["TTS_PORT"].flatMap { Int($0) } ?? 8010
         port = min(max(storedPort, 1), 65535)
