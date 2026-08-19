@@ -16,6 +16,30 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.baseURL.absoluteString, "http://127.0.0.1:8010")
     }
 
+    func testParrotEnvParsesDefaults() throws {
+        let dir = NSTemporaryDirectory() + "parrot-env-test-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+
+        let content = """
+        # setup.sh generated
+        export TTS_PORT="${TTS_PORT:-9000}"
+        export TTS_OUTPUT_DIR="${TTS_OUTPUT_DIR:-/tmp/out}"
+        export TTS_HOST="${TTS_HOST:-0.0.0.0}"
+        """
+        try content.write(toFile: dir + "/.parrot.env", atomically: true, encoding: .utf8)
+
+        let env = AppSettings.parrotEnv(repoDir: dir)
+        XCTAssertEqual(env["TTS_PORT"], "9000")
+        XCTAssertEqual(env["TTS_OUTPUT_DIR"], "/tmp/out")
+        XCTAssertEqual(env["TTS_HOST"], "0.0.0.0")
+    }
+
+    func testParrotEnvMissingFileIsEmpty() {
+        let env = AppSettings.parrotEnv(repoDir: "/no/such/dir")
+        XCTAssertTrue(env.isEmpty)
+    }
+
     func testEngineModeAcceptsWorkerApiCli() {
         let settings = AppSettings.shared
         let original = settings.engineMode

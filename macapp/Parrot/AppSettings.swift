@@ -13,6 +13,11 @@ final class AppSettings: ObservableObject {
     @Published var modelPath: String {
         didSet { UserDefaults.standard.set(modelPath, forKey: "modelPath") }
     }
+    /// 생성된 mp3를 보관할 폴더. 비우면 저장하지 않음(응답 후 삭제).
+    /// 서버로는 TTS_OUTPUT_DIR로 전달된다.
+    @Published var outputDir: String {
+        didSet { UserDefaults.standard.set(outputDir, forKey: "outputDir") }
+    }
     @Published var port: Int {
         didSet {
             let clamped = min(max(port, 1), 65535)
@@ -65,13 +70,41 @@ final class AppSettings: ObservableObject {
         return repoDir + "/refs"
     }
 
+    /// setup.sh가 생성한 {repo}/.parrot.env를 파싱해 기본값(포트·output 등)을 맞춘다.
+    /// `export KEY="${KEY:-VALUE}"` 형식에서 VALUE를 추출한다. 파일이 없으면 빈 딕셔너리.
+    static func parrotEnv(repoDir: String) -> [String: String] {
+        let path = repoDir + "/.parrot.env"
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return [:] }
+        var result: [String: String] = [:]
+        for raw in text.split(separator: "\n") {
+            var line = raw.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("#") { continue }
+            if line.hasPrefix("export ") { line = String(line.dropFirst("export ".count)) }
+            guard let eq = line.firstIndex(of: "=") else { continue }
+            let key = String(line[..<eq]).trimmingCharacters(in: .whitespaces)
+            var value = String(line[line.index(after: eq)...]).trimmingCharacters(in: .whitespaces)
+            if value.count >= 2, value.hasPrefix("\""), value.hasSuffix("\"") {
+                value = String(value.dropFirst().dropLast())
+            }
+            // ${KEY:-VALUE} 형태면 기본값 VALUE만 남긴다
+            if value.hasPrefix("${"), value.hasSuffix("}"), let r = value.range(of: ":-") {
+                value = String(value[r.upperBound..<value.index(before: value.endIndex)])
+            }
+            if !key.isEmpty { result[key] = value }
+        }
+        return result
+    }
+
     private init() {
         let d = UserDefaults.standard
         let repo = d.string(forKey: "repoDir") ?? Self.detectRepoDir()
         repoDir = repo
-        refsDir = d.string(forKey: "refsDir") ?? Self.detectRefsDir(repoDir: repo)
-        modelPath = d.string(forKey: "modelPath") ?? repo + "/fishaudio-s2-pro-8bit-mlx"
-        let storedPort = d.object(forKey: "port") as? Int ?? 8010
+        // setup.sh/tts.sh가 쓰는 .parrot.env와 포트·output 경로를 맞춘다(저장된 설정이 우선).
+        let env = Self.parrotEnv(repoDir: repo)
+        refsDir = d.string(forKey: "refsDir") ?? env["TTS_REFS_DIR"] ?? Self.detectRefsDir(repoDir: repo)
+        modelPath = d.string(forKey: "modelPath") ?? env["FISH_S2_MODEL_PATH"] ?? repo + "/fishaudio-s2-pro-8bit-mlx"
+        outputDir = d.string(forKey: "outputDir") ?? env["TTS_OUTPUT_DIR"] ?? repo + "/output"
+        let storedPort = d.object(forKey: "port") as? Int ?? env["TTS_PORT"].flatMap { Int($0) } ?? 8010
         port = min(max(storedPort, 1), 65535)
         modelTTLSec = d.object(forKey: "modelTTLSec") as? Int ?? 600
         keepServerOnQuit = d.object(forKey: "keepServerOnQuit") as? Bool ?? false

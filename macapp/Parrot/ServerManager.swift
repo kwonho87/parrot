@@ -97,6 +97,8 @@ final class ServerManager: ObservableObject {
         env["FISH_S2_MODEL_PATH"] = settings.modelPath
         env["TTS_MODEL_TTL_SEC"] = String(settings.modelTTLSec)
         env["TTS_TEMP_DIR"] = "/tmp/fish_tts_temp"
+        // 생성 mp3 보관 폴더. 비어 있으면 서버가 저장하지 않는다(빈 문자열=off).
+        env["TTS_OUTPUT_DIR"] = settings.outputDir
         env["TTS_ENGINE"] = settings.engineMode
         p.environment = env
 

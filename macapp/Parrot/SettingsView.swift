@@ -11,6 +11,9 @@ struct SettingsView: View {
                 TextField("저장소 경로 (server.py 위치)", text: $settings.repoDir)
                 TextField("refs 폴더", text: $settings.refsDir)
                 TextField("모델 폴더", text: $settings.modelPath)
+                TextField("생성 mp3 저장 폴더 (비우면 저장 안 함)", text: $settings.outputDir)
+                Text("앱이 직접 띄운 서버에만 적용됩니다. 외부(tts.sh)로 실행된 서버는 .parrot.env의 설정을 따릅니다.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("서버") {
                 TextField("포트", value: $settings.port, format: .number)
