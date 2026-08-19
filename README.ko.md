@@ -20,6 +20,38 @@ Apple Silicon(macOS + MLX)에서 동작하는 로컬 FastAPI 기반 TTS 서버�
 
 ---
 
+## 생성 파이프라인
+
+요청이 최종 MP3가 되기까지의 단계:
+
+```mermaid
+flowchart TD
+    A["클라이언트<br/>POST /tts (ref_id, text)"] --> B["server.py — FastAPI 엔드포인트"]
+    B --> C["레퍼런스 확인<br/>refs/ 먼저, 없으면 TTS_REFS_DIR<br/>{ref_id}.wav + {ref_id}.txt 읽기"]
+    C --> D["직렬 큐 (asyncio.Queue)<br/>한 번에 하나씩 처리"]
+    D --> E{"엔진 — TTS_ENGINE"}
+    E -->|worker| F["격리 자식 프로세스<br/>모델 상주"]
+    E -->|api| G["인프로세스<br/>모델 상주"]
+    E -->|cli| H["mlx-speech<br/>요청마다 실행"]
+    F --> I["WAV 합성<br/>TTS_TEMP_DIR/{id}.wav"]
+    G --> I
+    H --> I
+    I --> J["ffmpeg로 MP3 인코딩<br/>비트레이트 · 채널 · 샘플레이트<br/>+ 끝 무음"]
+    J --> K{"TTS_OUTPUT_DIR 설정됨?"}
+    K -->|예| L["사본 보관<br/>output/{시각}_{ref_id}_{id}.mp3"]
+    K -->|아니오| M["보관 건너뜀"]
+    L --> N["MP3 bytes 반환<br/>Content-Type: audio/mpeg"]
+    M --> N
+    N --> O["임시 WAV + MP3 삭제"]
+    F -. 유휴 > TTS_MODEL_TTL_SEC .-> P["모델 자동 언로드"]
+```
+
+- **최종 산출물:** 클라이언트로 반환되는 `audio/mpeg` 바이트. `TTS_OUTPUT_DIR`이 설정돼 있으면(`setup.sh` 기본값 `{parrot}/output`) 그곳에 영구 사본도 남습니다.
+- **직렬 처리:** 한 번에 한 작업만 실행되므로 동시 요청은 큐에서 대기합니다.
+- **임시 파일은 일회성:** `TTS_TEMP_DIR`의 WAV·MP3는 응답 후 항상 삭제되고, `output/` 사본만 남습니다.
+
+---
+
 ## 환경 정보
 
 | 항목 | 값 |

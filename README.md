@@ -20,6 +20,38 @@ Client
 
 ---
 
+## Generation pipeline
+
+How a request becomes the final MP3, step by step:
+
+```mermaid
+flowchart TD
+    A["Client<br/>POST /tts (ref_id, text)"] --> B["server.py — FastAPI endpoint"]
+    B --> C["Resolve reference<br/>refs/ then TTS_REFS_DIR<br/>read {ref_id}.wav + {ref_id}.txt"]
+    C --> D["Serial queue (asyncio.Queue)<br/>processed one at a time"]
+    D --> E{"Engine — TTS_ENGINE"}
+    E -->|worker| F["Isolated child process<br/>model resident"]
+    E -->|api| G["In-process<br/>model resident"]
+    E -->|cli| H["mlx-speech<br/>per request"]
+    F --> I["Synthesize WAV<br/>TTS_TEMP_DIR/{id}.wav"]
+    G --> I
+    H --> I
+    I --> J["Encode MP3 with ffmpeg<br/>bitrate · channels · sample rate<br/>+ tail silence"]
+    J --> K{"TTS_OUTPUT_DIR set?"}
+    K -->|yes| L["Archive a copy<br/>output/{timestamp}_{ref_id}_{id}.mp3"]
+    K -->|no| M["skip archiving"]
+    L --> N["Return MP3 bytes<br/>Content-Type: audio/mpeg"]
+    M --> N
+    N --> O["Delete temp WAV + MP3"]
+    F -. idle > TTS_MODEL_TTL_SEC .-> P["Auto-unload model"]
+```
+
+- **Final artifact:** the `audio/mpeg` bytes returned to the client. If `TTS_OUTPUT_DIR` is set (e.g. `{parrot}/output` from `setup.sh`), a persistent copy is also kept there.
+- **Serial by design:** one job runs at a time, so concurrent requests wait in the queue.
+- **Temp files are transient:** the WAV and MP3 under `TTS_TEMP_DIR` are always deleted after the response; only the `output/` copy persists.
+
+---
+
 ## Environment
 
 | Item | Value |
