@@ -232,6 +232,27 @@ def test_wav_to_mp3_no_tail_silence_when_zero(monkeypatch):
     assert "-af" not in captured["cmd"]
 
 
+def test_tts_archives_output_when_configured(monkeypatch, tmp_path):
+    """TTS_OUTPUT_DIR이 설정되면 생성된 mp3 사본이 그 폴더에 보관된다."""
+    outdir = tmp_path / "out"
+    monkeypatch.setenv("TTS_OUTPUT_DIR", str(outdir))
+    import server
+    importlib.reload(server)  # 모듈 로드 시 OUTPUT_DIR 읽고 폴더 생성
+    monkeypatch.setattr(server, "get_engine", lambda: FakeEngine())
+    monkeypatch.setattr(server, "_wav_to_mp3", lambda wav, mp3: open(mp3, "wb").write(b"MP3FAKE"))
+    try:
+        with TestClient(server.app) as c:
+            r = c.post("/tts", json={"ref_id": "testvoice", "text": "보관"})
+        assert r.status_code == 200
+        saved = list(outdir.glob("*.mp3"))
+        assert len(saved) == 1
+        assert saved[0].read_bytes() == b"MP3FAKE"
+        assert "testvoice" in saved[0].name
+    finally:
+        monkeypatch.delenv("TTS_OUTPUT_DIR", raising=False)
+        importlib.reload(server)  # 다른 테스트에 OUTPUT_DIR 누수 방지
+
+
 def test_get_engine_worker_falls_back_to_cli(monkeypatch):
     import server
     importlib.reload(server)

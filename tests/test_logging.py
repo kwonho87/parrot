@@ -49,3 +49,31 @@ def test_old_logs_cleaned_on_setup(tmp_path, monkeypatch):
 
     assert not old.exists()
     assert recent.exists()
+
+
+def test_cleanup_skips_unrelated_files(tmp_path):
+    """tts.log. 로 시작하지 않는 파일은 건드리지 않는다(continue 분기)."""
+    other = tmp_path / "unrelated.txt"
+    other.write_text("keep me")
+    plain = tmp_path / "tts.log"  # 정확히 "tts.log" — 뒤 점이 없어 매칭 대상 아님
+    plain.write_text("keep me too")
+    tts_logging._cleanup_old_logs(str(tmp_path))
+    assert other.exists()
+    assert plain.exists()
+
+
+def test_cleanup_missing_dir_is_silent():
+    """존재하지 않는 디렉터리를 넘겨도 예외 없이 반환한다(외부 OSError 분기)."""
+    tts_logging._cleanup_old_logs("/no/such/dir/definitely/absent")
+
+
+def test_cleanup_inner_oserror_is_ignored(tmp_path, monkeypatch):
+    """개별 파일 stat/삭제 중 OSError가 나도 삼키고 계속한다(내부 OSError 분기)."""
+    f = tmp_path / "tts.log.2020-01-01_00"
+    f.write_text("x")
+
+    def boom(path):
+        raise OSError("vanished")
+
+    monkeypatch.setattr(tts_logging.os.path, "getmtime", boom)
+    tts_logging._cleanup_old_logs(str(tmp_path))  # 예외가 밖으로 나오지 않아야 한다
