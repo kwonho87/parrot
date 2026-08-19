@@ -36,19 +36,18 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-  macapp-build:
-    name: macapp build
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install xcodegen
-        run: brew install xcodegen
-
-      - name: Generate project & build
-        working-directory: macapp
-        run: |
-          xcodegen generate
-          xcodebuild -project Parrot.xcodeproj -scheme Parrot \
-            -configuration Debug -destination 'platform=macOS' \
-            CODE_SIGNING_ALLOWED=NO build
+  # macapp(Swift) 빌드 잡은 별도 검증 후 추가 예정. 아래 설정을 참고.
+  # macapp-build:
+  #   name: macapp build
+  #   runs-on: macos-14
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install xcodegen
+  #       run: brew install xcodegen
+  #     - name: Generate project & build
+  #       working-directory: macapp
+  #       run: |
+  #         xcodegen generate
+  #         xcodebuild -project Parrot.xcodeproj -scheme Parrot \
+  #           -configuration Debug -destination 'platform=macOS' \
+  #           CODE_SIGNING_ALLOWED=NO build
